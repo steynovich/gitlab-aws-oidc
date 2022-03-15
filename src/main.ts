@@ -1,11 +1,51 @@
-import { App, Stack, StackProps } from 'aws-cdk-lib';
+import { App, Stack, StackProps, CfnOutput } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 
-export class MyStack extends Stack {
-  constructor(scope: Construct, id: string, props: StackProps = {}) {
+import { aws_iam as iam } from 'aws-cdk-lib';
+
+interface GitLabOidcProps extends StackProps {
+  gitLabURI: string;
+  gitLabProjectPath: string;
+};
+
+export class GitLabOidc extends Stack {
+  constructor(scope: Construct, id: string, props: GitLabOidcProps) {
     super(scope, id, props);
 
-    // define resources here...
+    // Configure OIDC provider
+    // See https://docs.gitlab.com/ee/ci/cloud_services/aws/#add-the-identity-provider
+    const oidcProvider = new iam.OpenIdConnectProvider(this, 'Provider', {
+      url: props.gitLabURI,
+      clientIds: [ props.gitLabURI, ],
+    });
+
+    // Create the role
+    const role = new iam.Role(this, 'Role', {
+      assumedBy: new iam.OpenIdConnectPrincipal(oidcProvider).withConditions({
+        'StringEquals': {
+          [ props.gitLabURI + ':sub' ]: 'project_path:' + props.gitLabProjectPath,
+        }
+      }),
+      description: 'GitLab pipeline role',
+    });
+    
+    // Create the policy to attach to the role
+    // Note: this is an example, needs 
+    const policy = new iam.ManagedPolicy(this, 'Policy', {
+      statements: [
+        new iam.PolicyStatement({
+          sid: 'GitLabPolicy',
+          actions: [ 'sts:GetCallerIdentity', ],
+          resources: [ '*', ],
+        }),
+      ],
+    });
+    role.addManagedPolicy(policy);
+
+    new CfnOutput(this, 'pipelineRoleArn', {
+      value: role.roleArn,
+      description: 'Role ARN to assume by pipeline',
+    });
   }
 }
 
@@ -17,7 +57,11 @@ const devEnv = {
 
 const app = new App();
 
-new MyStack(app, 'my-stack-dev', { env: devEnv });
+new GitLabOidc(app, 'my-stack-dev', {
+  env: devEnv,
+  gitLabURI: 'https://gitlab.com',
+  gitLabProjectPath: 'mygroup/myproject:ref_type:branch:ref:main',
+});
 // new MyStack(app, 'my-stack-prod', { env: prodEnv });
 
 app.synth();
