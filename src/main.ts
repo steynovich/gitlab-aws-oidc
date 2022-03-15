@@ -23,7 +23,7 @@ export class GitLabOidc extends Stack {
     const role = new iam.Role(this, 'Role', {
       assumedBy: new iam.OpenIdConnectPrincipal(oidcProvider).withConditions({
         'StringEquals': {
-          [ props.gitLabURI + ':sub' ]: 'project_path:' + props.gitLabProjectPath,
+          [ props.gitLabURI.substring(8) + ':sub' ]: 'project_path:' + props.gitLabProjectPath,
         }
       }),
       description: 'GitLab pipeline role',
@@ -41,6 +41,7 @@ export class GitLabOidc extends Stack {
       ],
     });
     role.addManagedPolicy(policy);
+    role.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName('AdministratorAccess'));
 
     new CfnOutput(this, 'pipelineRoleArn', {
       value: role.roleArn,
@@ -57,7 +58,7 @@ const devEnv = {
 
 const app = new App();
 
-new GitLabOidc(app, 'my-stack-dev', {
+new GitLabOidc(app, 'MyGitLabIntegration', {
   env: devEnv,
   gitLabURI: 'https://gitlab.com',
   gitLabProjectPath: 'mygroup/myproject:ref_type:branch:ref:main',
