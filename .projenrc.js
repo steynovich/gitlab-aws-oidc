@@ -1,6 +1,6 @@
 const { awscdk } = require('projen');
 const project = new awscdk.AwsCdkTypeScriptApp({
-  cdkVersion: '2.26.0',
+  cdkVersion: '2.35.0',
   cdkVersionPinning: true,
   defaultReleaseBranch: 'main',
   name: 'gitlab-aws-oidc',
