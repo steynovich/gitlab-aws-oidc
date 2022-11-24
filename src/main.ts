@@ -1,7 +1,5 @@
-import { App, Stack, StackProps, CfnOutput } from 'aws-cdk-lib';
+import { App, Stack, StackProps, CfnOutput, aws_iam as iam } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-
-import { aws_iam as iam } from 'aws-cdk-lib';
 
 interface GitLabOidcProps extends StackProps {
   gitLabURI: string;
@@ -16,27 +14,27 @@ export class GitLabOidc extends Stack {
     // See https://docs.gitlab.com/ee/ci/cloud_services/aws/#add-the-identity-provider
     const oidcProvider = new iam.OpenIdConnectProvider(this, 'Provider', {
       url: props.gitLabURI,
-      clientIds: [ props.gitLabURI, ],
+      clientIds: [props.gitLabURI],
     });
 
     // Create the role
     const role = new iam.Role(this, 'Role', {
       assumedBy: new iam.OpenIdConnectPrincipal(oidcProvider).withConditions({
-        'StringEquals': {
+        StringEquals: {
           [ props.gitLabURI.substring(8) + ':sub' ]: 'project_path:' + props.gitLabProjectPath,
-        }
+        },
       }),
       description: 'GitLab pipeline role',
     });
-    
+
     // Create the policy to attach to the role
-    // Note: this is an example, needs 
+    // Note: this is an example, needs
     const policy = new iam.ManagedPolicy(this, 'Policy', {
       statements: [
         new iam.PolicyStatement({
           sid: 'GitLabPolicy',
-          actions: [ 'sts:GetCallerIdentity', ],
-          resources: [ '*', ],
+          actions: ['sts:GetCallerIdentity'],
+          resources: ['*'],
         }),
       ],
     });
